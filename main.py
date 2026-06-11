@@ -1,12 +1,10 @@
 import asyncio
-import json
-import os
 from typing import Any, Dict
 
 import aiohttp
 from astrbot.api import AstrBotConfig
-from astrbot.api.all import Context, Star
-from astrbot.api.event import EventResult
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star
 
 
 class SponsorPlugin(Star):
@@ -27,20 +25,29 @@ class SponsorPlugin(Star):
         self._last_period: int = 0
         self._session: aiohttp.ClientSession | None = None
 
-        # 注册插件 Page 所需的 API 代理路由
+        # 注册插件 Page 的 API 路由（供前端 bridge.apiGet 调用）
         self._register_page_routes()
 
         # 若开启管理员提醒，启动定时检测任务
         if self.admin_reminder and self.api_base_url:
             asyncio.ensure_future(self._reminder_loop())
 
-    # ──────────────────────────── 路由注册 ────────────────────────────
+    # ──────────────────────────── Page 路由 ────────────────────────────
 
     def _register_page_routes(self) -> None:
         """向 AstrBot 注册插件 Page 可调用的 API 路由。"""
-        self.context.register_page_handler("GET", "all", self._proxy_get_all)
-        self.context.register_page_handler("GET", "current", self._proxy_get_current)
-        self.context.register_page_handler("GET", "previous-developers", self._proxy_get_previous_developers)
+        self.context.register_page_handler("GET", "all", self._page_get_all)
+        self.context.register_page_handler("GET", "current", self._page_get_current)
+        self.context.register_page_handler("GET", "previous-developers", self._page_get_previous_developers)
+
+    async def _page_get_all(self) -> Dict[str, Any]:
+        return await self._proxy_request("all")
+
+    async def _page_get_current(self) -> Dict[str, Any]:
+        return await self._proxy_request("current")
+
+    async def _page_get_previous_developers(self) -> Dict[str, Any]:
+        return await self._proxy_request("previous-developers")
 
     # ──────────────────────────── 代理请求 ────────────────────────────
 
@@ -50,7 +57,7 @@ class SponsorPlugin(Star):
             self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
-    async def _proxy_request(self, method: str, path: str) -> Dict[str, Any]:
+    async def _proxy_request(self, path: str) -> Dict[str, Any]:
         """向公司后端 API 发起代理请求。"""
         if not self.api_base_url:
             return {"code": 500, "message": "API 地址未配置，请在插件配置中设置 api_base_url"}
@@ -58,30 +65,20 @@ class SponsorPlugin(Star):
         session = await self._get_session()
         url = f"{self.api_base_url}/api/{path}"
         try:
-            async with session.request(method, url) as resp:
-                data = await resp.json()
-                return data
+            async with session.get(url) as resp:
+                return await resp.json()
         except aiohttp.ClientError as e:
             return {"code": 500, "message": f"后端 API 请求失败: {str(e)}"}
         except asyncio.TimeoutError:
             return {"code": 500, "message": "后端 API 请求超时"}
 
-    async def _proxy_get_all(self) -> Dict[str, Any]:
-        return await self._proxy_request("GET", "all")
-
-    async def _proxy_get_current(self) -> Dict[str, Any]:
-        return await self._proxy_request("GET", "current")
-
-    async def _proxy_get_previous_developers(self) -> Dict[str, Any]:
-        return await self._proxy_request("GET", "previous-developers")
-
-    # ──────────────────────── 管理员提醒 ──────────────────────────────
+    # ──────────────────────────── 管理员提醒 ──────────────────────────
 
     async def _reminder_loop(self) -> None:
         """定时检测后端 API，发现新一期赞助计划时通知管理员。"""
         while True:
             try:
-                data = await self._proxy_request("GET", "current")
+                data = await self._proxy_request("current")
                 if data.get("code") == 200:
                     current_data = data.get("data", {})
                     current_period = current_data.get("period", 0)
@@ -114,21 +111,12 @@ class SponsorPlugin(Star):
 
     # ──────────────────────────── 用户指令 ────────────────────────────
 
-    async def on_message(self, event) -> EventResult | None:
-        """处理用户消息指令。"""
-        msg = event.get_message_str().strip()
-
-        if msg == "/赞助计划" or msg == "/sponsor":
-            await self._send_sponsor_summary(event)
-            return EventResult(stop=True)
-
-        return None
-
-    async def _send_sponsor_summary(self, event) -> None:
-        """在聊天窗口中输出赞助计划摘要。"""
-        data = await self._proxy_get_all()
+    @filter.command("赞助计划")
+    async def sponsor(self, event: AstrMessageEvent):
+        """/赞助计划 或 /sponsor 查看赞助计划摘要。"""
+        data = await self._proxy_request("all")
         if data.get("code") != 200:
-            await event.reply("⚠️ 赞助计划数据获取失败，请稍后重试。")
+            yield event.plain_result("⚠️ 赞助计划数据获取失败，请稍后重试。")
             return
 
         info = data.get("data", {})
@@ -165,7 +153,7 @@ class SponsorPlugin(Star):
         if previous:
             lines.append("")
             lines.append("🏅 往期获赞助开发者：")
-            for dev in previous[:5]:  # 最多显示 5 位
+            for dev in previous[:5]:
                 lines.append(
                     f"  · {dev.get('name', '—')} "
                     f"(第{dev.get('period', '—')}期, "
@@ -176,7 +164,7 @@ class SponsorPlugin(Star):
                 lines.append(f"  ... 共 {len(previous)} 位开发者")
 
         lines.append("━━━━━━━━━━━━━━━━")
-        await event.reply("\n".join(lines))
+        yield event.plain_result("\n".join(lines))
 
     # ──────────────────────────── 清理 ────────────────────────────────
 
