@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>赞助计划</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/api/plugin/page/bridge-sdk.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <!-- 加载遮罩 -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>加载中...</p>
+  </div>
+
+  <!-- 错误提示 -->
+  <div id="error-banner" class="error-banner hidden"></div>
+
+  <!-- 主内容区 -->
+  <main id="main-content" class="main-content hidden">
+    <!-- 本期赞助信息卡片 -->
+    <section class="card current-card">
+      <div class="card-header">
+        <h2 id="period-title">第 1 期赞助计划</h2>
+        <span id="period-badge" class="badge badge-active">进行中</span>
+      </div>
+
+      <div class="card-body">
+        <!-- 活动公告 -->
+        <div class="announcement-section">
+          <h3>📢 活动公告</h3>
+          <p id="announcement-text" class="announcement-text">—</p>
+        </div>
+
+        <!-- 数据面板 -->
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">报名人数</span>
+            <span id="stat-registrant" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">赞助金额</span>
+            <span id="stat-amount" class="stat-value">¥0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">评选人数</span>
+            <span id="stat-reviewer" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="actions-grid">
+          <a id="btn-vote" class="action-btn hidden" href="#" target="_blank" rel="noopener">🗳️ 去投票</a>
+          <span id="btn-vote-placeholder" class="action-btn action-btn-disabled hidden">🗳️ 暂未开放投票</span>
+          <a id="btn-register" class="action-btn hidden" href="#" target="_blank" rel="noopener">
+            📝 去报名
+          </a>
+          <a id="btn-summary" class="action-btn hidden" href="#" target="_blank" rel="noopener">
+            📊 查看总表
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 往期开发者卡片 -->
+    <section class="card history-card">
+      <div class="card-header">
+        <h2>🏅 往期获赞助开发者</h2>
+        <span id="history-count" class="badge badge-count">0 位</span>
+      </div>
+      <div class="card-body">
+        <div id="history-list" class="history-list">
+          <p class="empty-hint">暂无往期记录</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="page-footer">
+    <span id="footer-refresh">最后更新：—</span>
+    <button id="btn-refresh" class="btn-refresh" title="刷新数据">🔄 刷新</button>
+  </footer>
+</body>
+</html>

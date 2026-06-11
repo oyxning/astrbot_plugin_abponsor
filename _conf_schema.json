@@ -1,0 +1,14 @@
+{
+  "api_base_url": {
+    "description": "赞助计划后端 API 地址",
+    "type": "string",
+    "hint": "请填写公司赞助计划发布服务的完整 URL，例如 https://sponsor.example.com",
+    "default": ""
+  },
+  "admin_reminder": {
+    "description": "是否提醒管理员新一期赞助计划开始",
+    "type": "bool",
+    "hint": "开启后，当检测到新一期赞助计划开始时，会向管理员发送通知",
+    "default": true
+  }
+}

@@ -1,0 +1,4 @@
+name: astrbot_plugin_abponsor
+desc: 赞助计划信息展示插件 — 在 Dashboard 中展示公司赞助计划的期数、公告、报名人数、赞助金额、评选人数及往期获赞助开发者
+author: YourName
+version: 1.0.0
