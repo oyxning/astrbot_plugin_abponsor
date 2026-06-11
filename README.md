@@ -1,21 +1,37 @@
-# Sponsor API - 赞助计划信息发布服务
+# AstrBot 赞助计划插件
 
-## API 接口
+在 AstrBot WebUI 中展示公司赞助计划数据，支持聊天指令快速查询摘要，以及新一期自动通知管理员。
 
-### 基础约定
+- **赞助计划官网**：[abponsor.tongujiyu.cn](https://abponsor.tongujiyu.cn)
+- **免责声明**：本赞助计划与 AstrBot 团队无任何直接的商业关联，仅面向非官方插件开发者提供赞助支持。
 
-- **Content-Type**: `application/json`
-- **CORS**: 已全放开
-- **限流**: 每 IP 10 秒内最多 200 次请求
-- **响应格式**: 统一 `{ "code": 200, "data": ... }`
+## 功能
 
----
+- **Dashboard Page**：在 WebUI 插件详情页展示期数、活动公告、报名人数、赞助金额、评选人数、投票/报名/总表入口、往期获赞助开发者
+- **聊天指令**：群聊中发送 `/赞助计划` 查看赞助计划摘要
+- **管理员提醒**：每小时轮询后端，发现新一期时自动通知管理员（可在配置中开关）
+- **投票入口兜底**：后端未配置投票 URL 时显示"暂未开放投票"
 
-### GET /api/all
+## 配置
 
-获取完整数据（推荐前端使用此接口）。
+在 WebUI 插件配置页面填写：
 
-**响应示例**:
+| 配置项 | 说明 | 默认值 |
+|--------|------|--------|
+| `api_base_url` | 公司赞助计划后端 API 地址，例如 `https://sponsor.example.com` | 空 |
+| `admin_reminder` | 是否提醒管理员新一期开始 | `true` |
+
+## 依赖的后端 API
+
+插件作为代理，将前端请求转发到公司后端。后端需提供以下接口（`{api_base_url}` 即配置中的地址）：
+
+| 接口 | 说明 |
+|------|------|
+| `GET {api_base_url}/api/all` | 获取完整数据（current + previousDevelopers） |
+| `GET {api_base_url}/api/current` | 获取当前期信息 |
+| `GET {api_base_url}/api/previous-developers` | 获取往期开发者列表 |
+
+### 响应格式
 
 ```json
 {
@@ -40,112 +56,32 @@
 }
 ```
 
-**字段说明** (`data.current`):
+### 字段说明 (data.current)
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | period | number | 当前第几期 |
 | announcement | string | 活动公告 |
-| registrantCount | number | 本期报名人数 |
-| sponsorAmount | number | 本期赞助总金额 |
-| reviewerCount | number | 本期评选人数 |
-| voteUrl | string | 投票入口链接（每期可配） |
-| registrationEnabled | boolean | 报名按钮是否可点击 |
-| registrationUrl | string | 报名链接（固定不变） |
-| summaryEnabled | boolean | 查询总表按钮是否可点击 |
-| summaryUrl | string | 总表链接（固定不变） |
+| registrantCount | number | 报名人数 |
+| sponsorAmount | number | 赞助金额 |
+| reviewerCount | number | 评选人数 |
+| voteUrl | string | 投票链接（空则不显示投票按钮） |
+| registrationEnabled | boolean | 是否开放报名 |
+| registrationUrl | string | 报名链接 |
+| summaryEnabled | boolean | 是否开放总表 |
+| summaryUrl | string | 总表链接 |
 
----
+## 文件结构
 
-### GET /api/current
-
-仅返回当前期赞助计划信息（`data.current` 部分）。
-
----
-
-### GET /api/previous-developers
-
-仅返回往期开发者列表。
-
-```json
-{
-  "code": 200,
-  "data": [
-    { "name": "张三", "period": 1, "amount": 5000, "project": "开源项目A" }
-  ]
-}
 ```
-
----
-
-### PUT /api/current
-
-更新当前期配置。
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| period | number | 否 | 第几期 |
-| announcement | string | 否 | 活动公告 |
-| registrantCount | number | 否 | 报名人数 |
-| sponsorAmount | number | 否 | 赞助金额 |
-| reviewerCount | number | 否 | 评选人数 |
-| voteUrl | string | 否 | 投票链接 |
-| registrationEnabled | boolean | 否 | 开放报名 |
-| registrationUrl | string | 否 | 报名链接 |
-| summaryEnabled | boolean | 否 | 开放总表 |
-| summaryUrl | string | 否 | 总表链接 |
-
-> 只传要改的字段，其余保持不变。
-
----
-
-### POST /api/previous-developers
-
-添加一位往期获赞助开发者。
-
-```json
-{
-  "name": "张三",
-  "period": 1,
-  "amount": 5000,
-  "project": "开源项目A"
-}
+astrbot_plugin_abponsor/
+├── _conf_schema.json       # 插件配置定义
+├── metadata.yaml            # 插件元数据
+├── requirements.txt         # Python 依赖 (aiohttp)
+├── main.py                  # 插件主逻辑
+└── pages/
+    └── sponsor/
+        ├── index.html       # Dashboard Page
+        ├── app.js           # 页面逻辑
+        └── style.css        # 页面样式
 ```
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| name | string | 是 | 开发者名称 |
-| period | number | 是 | 期数 |
-| amount | number | 否 | 赞助金额 |
-| project | string | 否 | 项目名称 |
-
----
-
-### GET /health
-
-健康检查。
-
-```json
-{ "status": "ok", "uptime": 123.45 }
-```
-
----
-
-## 典型发布流程
-
-1. **新一期开始**: 在 `/admin` 页面更新 `period`、`announcement`、`voteUrl`，开启 `registrationEnabled`，重置计数为 0
-2. **报名进行中**: 更新 `registrantCount`（递增）
-3. **报名截止**: 关闭 `registrationEnabled`
-4. **本期结束**: 开启 `summaryEnabled`，添加获赞助开发者
-5. **前端无需改动** — 自动拉取最新 JSON
-
----
-
-## 防灾机制
-
-| 机制 | 实现 |
-|------|------|
-| 内存缓存 | 3 秒 TTL，磁盘故障时用缓存兜底 |
-| 限流 | 令牌桶，每 IP 10 秒 200 次 |
-| 熔断 | 连续 10 次 5xx 自动熔断 15 秒 |
-| 数据持久化 | `data/db.json` 挂载到宿主机 |
