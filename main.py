@@ -19,7 +19,12 @@ class SponsorPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
-        self.api_base_url: str = config.get("api_base_url", "").rstrip("/")
+        raw = config.get("api_base_url", "").rstrip("/")
+        # 用户可能误填了完整的 API 路径，自动截取到域名部分
+        if "/api/" in raw:
+            idx = raw.index("/api/")
+            raw = raw[:idx]
+        self.api_base_url: str = raw
         self.admin_reminder: bool = config.get("admin_reminder", True)
 
         self._last_period: int = 0
