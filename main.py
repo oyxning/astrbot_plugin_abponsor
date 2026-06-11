@@ -4,7 +4,8 @@ import os
 from typing import Any, Dict
 
 import aiohttp
-from astrbot.api import AstrBotConfig, Context, Star
+from astrbot.api import AstrBotConfig
+from astrbot.api.all import Context, Star
 from astrbot.api.event import EventResult
 
 
