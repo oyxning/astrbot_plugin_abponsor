@@ -1,10 +1,13 @@
 import asyncio
+import logging
 from typing import Any, Dict
 
 import aiohttp
 from astrbot.api import AstrBotConfig
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star
+
+logger = logging.getLogger("astrbot")
 
 
 class SponsorPlugin(Star):
@@ -84,7 +87,15 @@ class SponsorPlugin(Star):
         url = f"{self.api_base_url}/api/{path}"
         try:
             async with session.get(url) as resp:
-                return await resp.json()
+                logger.info(f"[赞助计划] 请求 {url} → status={resp.status} content_type={resp.content_type}")
+                # 处理非 JSON 响应
+                if "application/json" not in (resp.content_type or ""):
+                    text = await resp.text()
+                    logger.warning(f"[赞助计划] 非JSON响应: {text[:300]}")
+                    return {"code": 500, "message": f"后端API返回非JSON: HTTP {resp.status}"}
+                data = await resp.json()
+                logger.info(f"[赞助计划] 响应 code={data.get('code')}, 有data={bool(data.get('data'))}")
+                return data
         except aiohttp.ClientError as e:
             return {"code": 500, "message": f"后端 API 请求失败: {str(e)}"}
         except asyncio.TimeoutError:
