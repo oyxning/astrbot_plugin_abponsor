@@ -39,15 +39,18 @@ class SponsorPlugin(Star):
     # ──────────────────────────── Page 路由 ────────────────────────────
 
     def _register_page_routes(self) -> None:
-        """通过 Context.register_web_api 注册 API 路由，供 bridge.apiGet 调用。"""
+        """通过 Context.register_web_api 注册 API 路由，供 bridge.apiGet 调用。
+        路由格式：/插件目录名/端点名，bridge 会自动拼接 /api/plug/ 前缀。
+        """
+        pre = "/astrbot_plugin_abponsor/"
         self.context.register_web_api(
-            "sponsor-all", self._page_get_all, ["GET"], "获取赞助计划全部数据"
+            f"{pre}sponsor-all", self._page_get_all, ["GET"], "获取赞助计划全部数据"
         )
         self.context.register_web_api(
-            "sponsor-current", self._page_get_current, ["GET"], "获取当前期赞助信息"
+            f"{pre}sponsor-current", self._page_get_current, ["GET"], "获取当前期赞助信息"
         )
         self.context.register_web_api(
-            "sponsor-history", self._page_get_previous_developers, ["GET"], "获取往期开发者列表"
+            f"{pre}sponsor-history", self._page_get_previous_developers, ["GET"], "获取往期开发者列表"
         )
 
     async def _page_get_all(self) -> Dict[str, Any]:
