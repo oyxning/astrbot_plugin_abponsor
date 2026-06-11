@@ -25,29 +25,13 @@ class SponsorPlugin(Star):
         self._last_period: int = 0
         self._session: aiohttp.ClientSession | None = None
 
-        # 注册插件 Page 的 API 路由（供前端 bridge.apiGet 调用）
-        self._register_page_routes()
+    # ─────────────────────── 初始化完成钩子 ───────────────────────────
 
-        # 若开启管理员提醒，启动定时检测任务
+    @filter.on_astrbot_loaded()
+    async def _on_loaded(self):
+        """AstrBot 初始化完成后，启动管理员提醒定时任务。"""
         if self.admin_reminder and self.api_base_url:
-            asyncio.ensure_future(self._reminder_loop())
-
-    # ──────────────────────────── Page 路由 ────────────────────────────
-
-    def _register_page_routes(self) -> None:
-        """向 AstrBot 注册插件 Page 可调用的 API 路由。"""
-        self.context.register_page_handler("GET", "all", self._page_get_all)
-        self.context.register_page_handler("GET", "current", self._page_get_current)
-        self.context.register_page_handler("GET", "previous-developers", self._page_get_previous_developers)
-
-    async def _page_get_all(self) -> Dict[str, Any]:
-        return await self._proxy_request("all")
-
-    async def _page_get_current(self) -> Dict[str, Any]:
-        return await self._proxy_request("current")
-
-    async def _page_get_previous_developers(self) -> Dict[str, Any]:
-        return await self._proxy_request("previous-developers")
+            asyncio.create_task(self._reminder_loop())
 
     # ──────────────────────────── 代理请求 ────────────────────────────
 
@@ -99,13 +83,15 @@ class SponsorPlugin(Star):
 
                     self._last_period = current_period
             except Exception:
-                pass  # 静默处理，避免日志刷屏
-            await asyncio.sleep(3600)  # 每小时检测一次
+                pass
+            await asyncio.sleep(3600)
 
     async def _notify_admin(self, message: str) -> None:
         """向 AstrBot 管理员发送通知消息。"""
         try:
-            await self.context.send_message_to_admin(message)
+            admins = self.context.get_admins()
+            if admins:
+                await self.context.send_message(admins[0], message)
         except Exception:
             pass
 
@@ -113,7 +99,7 @@ class SponsorPlugin(Star):
 
     @filter.command("赞助计划")
     async def sponsor(self, event: AstrMessageEvent):
-        """/赞助计划 或 /sponsor 查看赞助计划摘要。"""
+        """/赞助计划 查看赞助计划摘要。"""
         data = await self._proxy_request("all")
         if data.get("code") != 200:
             yield event.plain_result("⚠️ 赞助计划数据获取失败，请稍后重试。")

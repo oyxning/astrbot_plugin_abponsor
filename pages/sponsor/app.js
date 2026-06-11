@@ -1,7 +1,12 @@
 /* ============================================================
    赞助计划页面 — 主逻辑
-   依赖：AstrBot Plugin Page Bridge (window.AstrBotPluginPage)
+   — 前端通过 fetch() 直连公司后端 API（CORS 已全放开）
+   — 使用 AstrBot Plugin Page Bridge 做国际化 / 上下文监听
    ============================================================ */
+
+// ====== ★ 配置：修改为公司后端 API 地址（与 _conf_schema.json 保持一致）======
+const API_BASE = "https://sponsor.example.com";
+// =====================================================================
 
 const bridge = window.AstrBotPluginPage;
 
@@ -35,13 +40,13 @@ async function init() {
   }
 }
 
-// ── 数据加载 ──
+// ── 数据加载（直连公司后端 API）──
 async function loadData() {
   showLoading(true);
   hideError();
 
   try {
-    const resp = await bridge.apiGet("all", {});
+    const resp = await fetch(`${API_BASE}/api/all`).then(handleFetchError);
     if (resp.code !== 200) {
       throw new Error(resp.message || "数据获取失败");
     }
@@ -52,6 +57,13 @@ async function loadData() {
   } finally {
     showLoading(false);
   }
+}
+
+async function handleFetchError(res) {
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
+  return res.json();
 }
 
 // ── 渲染 ──
@@ -81,7 +93,7 @@ function render(data) {
   $statAmount.textContent = `¥${formatNumber(current.sponsorAmount)}`;
   $statReviewer.textContent = formatNumber(current.reviewerCount);
 
-  // 操作按钮
+  // 投票入口：有 URL 显示按钮，无 URL 显示"暂未开放"
   if (current.voteUrl) {
     $btnVote.href = current.voteUrl;
     $btnVote.classList.remove("hidden");
