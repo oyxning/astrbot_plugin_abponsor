@@ -85,7 +85,7 @@ function render(data) {
 
   // 投票入口：有 URL 显示按钮，无 URL 显示"暂未开放"
   if (current.voteUrl) {
-    $btnVote.href = current.voteUrl;
+    $btnVote.href = cleanUrl(current.voteUrl);
     $btnVote.classList.remove("hidden");
     $btnVotePlaceholder.classList.add("hidden");
   } else {
@@ -101,7 +101,7 @@ function render(data) {
 
 function renderButton(el, url, label) {
   if (url) {
-    el.href = url;
+    el.href = cleanUrl(url);
     el.textContent = label;
     el.classList.remove("hidden");
   } else {
@@ -163,6 +163,11 @@ function formatNumber(val) {
     return (num / 10000).toFixed(1) + "万";
   }
   return num.toLocaleString("zh-CN");
+}
+
+function cleanUrl(url) {
+  // 去除后端可能混入的反引号、引号和首尾空格
+  return String(url || "").replace(/[`'"]/g, "").trim();
 }
 
 function escapeHtml(str) {
