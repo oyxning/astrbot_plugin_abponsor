@@ -43,10 +43,16 @@ async function loadData() {
 
   try {
     const resp = await bridge.apiGet("sponsor-all", {});
-    if (resp.code !== 200) {
-      throw new Error(resp.message || "数据获取失败");
+    console.log("[赞助计划] bridge 返回:", JSON.stringify(resp));
+    // 兼容 bridge 可能的多层包裹
+    const data = resp.data || (resp.status === "ok" ? resp.data : null);
+    if (data) {
+      render(data);
+    } else if (resp.code === 200 || resp.code === 0) {
+      render(resp.data);
+    } else {
+      throw new Error(resp.message || resp.msg || "响应格式异常: " + JSON.stringify(resp).substring(0, 100));
     }
-    render(resp.data);
     updateRefreshTime();
   } catch (err) {
     showError("数据加载失败：" + err.message);
