@@ -25,6 +25,9 @@ class SponsorPlugin(Star):
         self._last_period: int = 0
         self._session: aiohttp.ClientSession | None = None
 
+        # 注册插件 Page 的 API 路由（供前端 bridge.apiGet 调用）
+        self._register_page_routes()
+
     # ─────────────────────── 初始化完成钩子 ───────────────────────────
 
     @filter.on_astrbot_loaded()
@@ -32,6 +35,29 @@ class SponsorPlugin(Star):
         """AstrBot 初始化完成后，启动管理员提醒定时任务。"""
         if self.admin_reminder and self.api_base_url:
             asyncio.create_task(self._reminder_loop())
+
+    # ──────────────────────────── Page 路由 ────────────────────────────
+
+    def _register_page_routes(self) -> None:
+        """通过 Context.register_web_api 注册 API 路由，供 bridge.apiGet 调用。"""
+        self.context.register_web_api(
+            "sponsor-all", self._page_get_all, ["GET"], "获取赞助计划全部数据"
+        )
+        self.context.register_web_api(
+            "sponsor-current", self._page_get_current, ["GET"], "获取当前期赞助信息"
+        )
+        self.context.register_web_api(
+            "sponsor-history", self._page_get_previous_developers, ["GET"], "获取往期开发者列表"
+        )
+
+    async def _page_get_all(self) -> Dict[str, Any]:
+        return await self._proxy_request("all")
+
+    async def _page_get_current(self) -> Dict[str, Any]:
+        return await self._proxy_request("current")
+
+    async def _page_get_previous_developers(self) -> Dict[str, Any]:
+        return await self._proxy_request("previous-developers")
 
     # ──────────────────────────── 代理请求 ────────────────────────────
 
