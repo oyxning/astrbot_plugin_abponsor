@@ -78,28 +78,48 @@ class SponsorPlugin(Star):
             self._session = aiohttp.ClientSession(timeout=timeout)
         return self._session
 
-    async def _proxy_request(self, path: str) -> Dict[str, Any]:
-        """向公司后端 API 发起代理请求。"""
+    async def _proxy_request(self, path: str, retries: int = 3) -> Dict[str, Any]:
+        """向公司后端 API 发起代理请求（含重试）。"""
         if not self.api_base_url:
             return {"code": 500, "message": "API 地址未配置，请在插件配置中设置 api_base_url"}
 
         session = await self._get_session()
         url = f"{self.api_base_url}/api/{path}"
-        try:
-            async with session.get(url) as resp:
-                logger.info(f"[赞助计划] 请求 {url} → status={resp.status} content_type={resp.content_type}")
-                # 处理非 JSON 响应
-                if "application/json" not in (resp.content_type or ""):
-                    text = await resp.text()
-                    logger.warning(f"[赞助计划] 非JSON响应: {text[:300]}")
-                    return {"code": 500, "message": f"后端API返回非JSON: HTTP {resp.status}"}
-                data = await resp.json()
-                logger.info(f"[赞助计划] 响应 code={data.get('code')}, 有data={bool(data.get('data'))}")
-                return data
-        except aiohttp.ClientError as e:
-            return {"code": 500, "message": f"后端 API 请求失败: {str(e)}"}
-        except asyncio.TimeoutError:
-            return {"code": 500, "message": "后端 API 请求超时"}
+        last_err = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                async with session.get(url) as resp:
+                    if resp.status >= 500:
+                        text = await resp.text()
+                        last_err = f"后端API HTTP {resp.status}: {text[:100]}"
+                        logger.warning(f"[赞助计划] {last_err} (第{attempt}次)")
+                        if attempt < retries:
+                            await asyncio.sleep(attempt * 1.5)
+                            continue
+                        return {"code": 500, "message": last_err}
+
+                    if "application/json" not in (resp.content_type or ""):
+                        text = await resp.text()
+                        last_err = f"后端API返回非JSON: HTTP {resp.status}"
+                        logger.warning(f"[赞助计划] {last_err}")
+                        return {"code": 500, "message": last_err}
+
+                    data = await resp.json()
+                    return data
+
+            except aiohttp.ClientError as e:
+                last_err = f"后端 API 请求失败: {str(e)}"
+                logger.warning(f"[赞助计划] {last_err} (第{attempt}次)")
+                if attempt < retries:
+                    await asyncio.sleep(attempt * 1.5)
+            except asyncio.TimeoutError:
+                last_err = "后端 API 请求超时"
+                logger.warning(f"[赞助计划] {last_err} (第{attempt}次)")
+                if attempt < retries:
+                    await asyncio.sleep(attempt * 1.5)
+
+        return {"code": 500, "message": last_err or "未知错误"}
 
     # ──────────────────────────── 管理员提醒 ──────────────────────────
 
